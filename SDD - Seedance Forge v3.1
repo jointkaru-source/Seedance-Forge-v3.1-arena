@@ -1,0 +1,1701 @@
+# Seedance Forge v3.1 — Software Design Document (SDD)
+
+**Status:** Draft for implementation  
+**Version:** 0.1  
+**Date:** 2026-08-09  
+**Product:** Seedance Forge v3.1  
+**Document type:** Software Design Document / Production Specification
+
+---
+
+## 1. Document Purpose
+
+This document defines the functional, architectural, interaction, data, AI, export, and continuity requirements for **Seedance Forge v3.1**, a desktop-oriented audiovisual pre-production and cinematic art-direction application.
+
+The SDD has one primary objective:
+
+> Establish a single, precise technical reference for implementing Seedance Forge as a real, stateful production application rather than a visual prototype.
+
+The document consolidates:
+
+1. the original Seedance Forge v3.1 product specification;
+2. the functional capabilities identified in the supplied development extraction;
+3. the interaction and visual behaviors already validated in the current prototype;
+4. the production-continuity principles of the Cinematic Reference System (CRS).
+
+### 1.1 Source basis
+
+The supplied development extraction describes, among other capabilities:
+
+- infinite canvas interaction;
+- draggable/minimizable/focusable boards;
+- centralized state;
+- storyboard and timeline synchronization;
+- Fountain parsing;
+- Character and Environment structured data;
+- Prompt Lock and Env Lock;
+- Depth 3×3 composition;
+- platform-aware prompt compilation;
+- AI provider abstraction;
+- local/offline operation;
+- import/export;
+- animatic playback;
+- print-ready production output;
+- visual bible generation;
+- clipboard/toast/UI feedback;
+- responsive viewport handling.
+
+These source-derived behaviors must be preserved during implementation. Where this document defines additional implementation structure not explicitly present in the source, it is marked as an implementation decision.
+
+---
+
+# 2. Product Definition
+
+## 2.1 Product vision
+
+Seedance Forge is a **cinematic pre-production operating environment**.
+
+It is not primarily an image-generation application. Its core responsibility is to transform narrative and visual intent into a structured production system in which:
+
+- story beats become scenes;
+- scenes become shots;
+- shots inherit visual continuity;
+- characters become locked visual identities;
+- environments become locked architectural/atmospheric references;
+- camera composition becomes explicit;
+- prompts are compiled from structured production data;
+- animatics and production documents derive from the same project state.
+
+## 2.2 Core principle
+
+**One Project State → Multiple Production Views**
+
+Storyboard, Script, Character, Environment, Depth, Prompt Studio, Animatic, Bible, Inspector and Export must never maintain conflicting copies of project truth.
+
+All views read from and write to the same normalized project state.
+
+## 2.3 Primary user
+
+The primary user is a filmmaker, director, art director, storyboard artist, pre-production designer, cinematographer, or AI-assisted visual production designer.
+
+---
+
+# 3. Product Goals
+
+## 3.1 Primary goals
+
+- Provide a unified cinematic pre-production workspace.
+- Maintain visual identity and continuity across shots.
+- Convert source documents into structured production entities.
+- Allow manual and AI-assisted refinement.
+- Make camera language explicit and reusable.
+- Generate prompts from production facts rather than isolated text.
+- Produce an editable animatic from storyboard timing.
+- Produce a Visual Production Bible.
+- Produce set-ready printable documentation.
+- Support local/offline workflows.
+- Persist projects in a portable `.seedance` format.
+
+## 3.2 Non-goals
+
+The application is not intended to be:
+
+- a full nonlinear video editor;
+- a final VFX compositor;
+- a final 3D DCC;
+- a final audio workstation;
+- an image-generation backend itself.
+
+AI generation providers are integrations. Seedance Forge remains the orchestration and continuity layer.
+
+---
+
+# 4. Design Principles
+
+## 4.1 Source of truth
+
+The uploaded/source material is the authoritative basis for extracted narrative facts.
+
+AI must not silently invent production facts.
+
+Unknown or ambiguous information must remain explicitly unknown, inferred, or unresolved.
+
+## 4.2 Continuity over artistic improvisation
+
+The system must prioritize:
+
+1. identity consistency;
+2. environment consistency;
+3. camera consistency;
+4. narrative continuity;
+5. production usability.
+
+## 4.3 Structured data over free-form duplication
+
+Whenever information can be represented as a structured field, it should not be duplicated in unrelated text fields.
+
+## 4.4 Reversible editing
+
+Major project mutations must support undo/redo.
+
+## 4.5 Local-first operation
+
+Core authoring, navigation, editing, saving, loading, prompt compilation, timeline calculation and mock AI operation must work without a remote service.
+
+## 4.6 Production outputs derive from project state
+
+PDF, CSV, Bible, animatic and prompt exports must be generated from the same canonical state.
+
+---
+
+# 5. Technical Architecture
+
+## 5.1 Target stack
+
+The intended production implementation is:
+
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS v3
+- Zustand
+- Tauri v2
+- Rust
+- pnpm
+
+The currently validated visual prototype may remain self-contained during iterative UI development, but the production architecture should converge on the stack above.
+
+## 5.2 High-level architecture
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│                     Tauri Desktop Shell                 │
+│                         Rust / IPC                      │
+├─────────────────────────────────────────────────────────┤
+│                    React Application                   │
+│                                                         │
+│  TopBar ─ Canvas ─ Boards ─ Inspector ─ Timeline       │
+│                         │                               │
+│                    Zustand Store                       │
+│                         │                               │
+│       ┌─────────────────┼─────────────────┐             │
+│       │                 │                 │             │
+│   Project Model     AI Services       Export Services  │
+│       │                 │                 │             │
+│   JSON/.seedance   Ollama/Mock       PDF/CSV/Bible     │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 5.3 Layer responsibilities
+
+### Presentation layer
+
+Responsible for:
+
+- rendering;
+- pointer/keyboard interactions;
+- board windows;
+- modals;
+- visual feedback;
+- responsive layout.
+
+### State layer
+
+Responsible for:
+
+- canonical project state;
+- selection;
+- viewport;
+- history;
+- playback;
+- mutations;
+- persistence orchestration.
+
+### Domain layer
+
+Responsible for:
+
+- prompt compilation;
+- Fountain parsing;
+- source ingestion;
+- timeline calculation;
+- shot relationships;
+- continuity validation;
+- Bible assembly.
+
+### Integration layer
+
+Responsible for:
+
+- AI providers;
+- Tauri IPC;
+- clipboard;
+- local file operations;
+- external tool links.
+
+### Export layer
+
+Responsible for:
+
+- `.seedance`;
+- JSON;
+- CSV;
+- print/PDF;
+- visual production Bible;
+- animatic data.
+
+---
+
+# 6. Application Shell
+
+## 6.1 App.tsx
+
+The application root composes:
+
+- TopBar;
+- InfiniteCanvas;
+- InspectorPanel;
+- TimelineBar;
+- modal system;
+- toast/feedback system.
+
+The App must not contain business logic that belongs to the domain or store.
+
+## 6.2 TopBar
+
+Responsibilities:
+
+- project title;
+- project ID;
+- director;
+- aspect ratio;
+- FPS;
+- save;
+- load;
+- import;
+- export;
+- Bible;
+- Animatic;
+- PDF;
+- navigation shortcuts;
+- AI/provider status.
+
+Project metadata must remain synchronized with the project state and exported filename.
+
+---
+
+# 7. Infinite Canvas
+
+## 7.1 Canvas dimensions
+
+Virtual workspace:
+
+- width: 6000 px;
+- height: 5000 px.
+
+Viewport zoom:
+
+- minimum: 30%;
+- maximum: 250%.
+
+## 7.2 Pan
+
+Pointer-drag on empty canvas moves the viewport.
+
+Canvas panning must not accidentally:
+
+- select a board;
+- move a board;
+- update project data;
+- trigger unnecessary persistence.
+
+Pointer capture should be used while dragging.
+
+## 7.3 Zoom
+
+Zoom should be cursor-centered.
+
+The world point beneath the cursor must remain spatially stable while zoom changes.
+
+## 7.4 Navigation controls
+
+Floating controls:
+
+- Zoom In;
+- Zoom Out;
+- Reset View.
+
+## 7.5 Board positioning
+
+Board positions are stored in world coordinates, not screen coordinates.
+
+---
+
+# 8. Board Window System
+
+Each board is represented by a `BoardWindow`.
+
+## 8.1 Required properties
+
+```ts
+type BoardWindowState = {
+  id: string
+  boardType: BoardType
+  x: number
+  y: number
+  width: number
+  height: number
+  minimized: boolean
+  zIndex: number
+}
+```
+
+## 8.2 Interaction
+
+Supported:
+
+- drag;
+- focus;
+- minimize;
+- restore;
+- shortcut focus;
+- z-index promotion.
+
+## 8.3 Focus
+
+Clicking a board promotes it to the active z-index.
+
+Active boards receive the visual focus treatment.
+
+## 8.4 Minimize
+
+Minimization changes presentation state only.
+
+It must not destroy board data.
+
+---
+
+# 9. Seven Core Boards
+
+## 9.1 STORY-BOARD — Storyboard Visual
+
+Responsibilities:
+
+- display scenes;
+- display shots/frames;
+- show visual thumbnails/placeholders;
+- show shot type;
+- show lens;
+- show duration;
+- show movement;
+- select frame;
+- add frame;
+- edit frame;
+- delete frame;
+- reorder frames;
+- drag frames between scenes.
+
+### Frame model
+
+```ts
+type Frame = {
+  id: string
+  sceneId: string
+  index: number
+  shotType: ShotType
+  lens: Lens
+  movement: CameraMovement
+  duration: number
+  action: string
+  dialogue?: string
+  prompt?: string
+  characterId?: string
+  environmentId?: string
+  depthCellId?: string
+  visualNotes?: string
+}
+```
+
+---
+
+# 10. SCRIPT-BOARD — Fountain
+
+## 10.1 Editor
+
+Must support a Fountain-compatible authoring experience.
+
+## 10.2 Parser
+
+Parser identifies:
+
+- scene headings;
+- action;
+- character cues;
+- dialogue;
+- parentheticals;
+- blank lines.
+
+The supplied implementation describes semantic classification based on line structure, capitalization, indentation and context.
+
+## 10.3 Modes
+
+- Edit;
+- Preview.
+
+## 10.4 Structured extraction
+
+Parsed screenplay content may populate:
+
+- scenes;
+- characters;
+- dialogue;
+- action;
+- initial shot candidates.
+
+Parsing must not overwrite existing authored data without explicit user confirmation.
+
+---
+
+# 11. CHAR-BOARD — Character Identity
+
+Each character is a continuity entity.
+
+## 11.1 Character schema
+
+```ts
+type Character = {
+  id: string
+  name: string
+  role?: string
+  age?: string
+  physicalDescription?: string
+  personality?: string
+  wardrobe?: string
+  hair?: string
+  eyes?: string
+  palette: string[]
+  turnaround: {
+    front?: string
+    profile?: string
+    threeQuarter?: string
+    back?: string
+  }
+  references: string[]
+  promptLock?: string
+  notes?: string
+}
+```
+
+## 11.2 Prompt Lock
+
+Prompt Lock is the canonical visual continuity descriptor.
+
+It is used by Prompt Studio and Shot generation.
+
+The UI must distinguish:
+
+- missing lock;
+- manually authored lock;
+- AI-generated lock;
+- locked/approved state.
+
+---
+
+# 12. ENV-BOARD — SOAC Environment
+
+Environment records represent production environments and architectural continuity.
+
+## 12.1 Environment schema
+
+```ts
+type Environment = {
+  id: string
+  name: string
+  type?: string
+  architecture?: string
+  materials?: string
+  lighting?: string
+  atmosphere?: string
+  palette: string[]
+  references: string[]
+  promptLock?: string
+  notes?: string
+}
+```
+
+## 12.2 SOAC
+
+The board must support structured architectural information including:
+
+- architecture;
+- materials;
+- lighting;
+- atmosphere;
+- mood;
+- references;
+- technical notes.
+
+## 12.3 Env Lock
+
+Env Lock is the canonical environment continuity descriptor used in shot prompt compilation.
+
+---
+
+# 13. TOOLS-BOARD — AI Tools & Links
+
+AI tool directory categories:
+
+### Video
+
+- Seedance AI
+- Reve AI
+- Runway
+- Kling
+- Veo
+- Luma
+
+### Image
+
+- Midjourney
+- Flux
+- Krea
+
+### Audio
+
+- ElevenLabs
+- Suno
+
+### Script
+
+Script-oriented tools.
+
+### Upscale
+
+- Topaz
+
+Users can add/edit custom URLs.
+
+Tool records should contain:
+
+```ts
+type AITool = {
+  id: string
+  name: string
+  category: ToolCategory
+  url: string
+  notes?: string
+  enabled: boolean
+}
+```
+
+URLs must be validated before persistence.
+
+---
+
+# 14. DEPTH-BOARD — Camera & Depth 3×3
+
+## 14.1 Grid
+
+Nine cinematic shot cells:
+
+- ELS
+- LS
+- MLS
+- MS
+- MCU
+- CU
+- ECU
+- OTS
+- POV
+
+## 14.2 Depth layers
+
+Each cell contains:
+
+- foreground;
+- midground;
+- background.
+
+Each layer can contain editable notes.
+
+## 14.3 Camera metadata
+
+Supported:
+
+### Lenses
+
+16mm–135mm, including at minimum:
+
+- 16mm;
+- 24mm;
+- 35mm;
+- 50mm;
+- 85mm;
+- 135mm.
+
+### Movements
+
+- Static;
+- Pan;
+- Tilt;
+- Dolly;
+- Tracking;
+- Orbital;
+- Crane;
+- Handheld.
+
+Exact production enum may be finalized during implementation.
+
+---
+
+# 15. PROMPT-BOARD — Prompt Studio
+
+Prompt Studio is the application’s prompt compiler.
+
+## 15.1 Inputs
+
+A compiled prompt may combine:
+
+- shot type;
+- lens;
+- movement;
+- action;
+- character Prompt Lock;
+- environment Env Lock;
+- depth configuration;
+- aspect ratio;
+- platform;
+- visual style;
+- optional notes.
+
+## 15.2 Conceptual compilation
+
+```text
+/{shotType} shot,
+lens {lens},
+{movement} camera.
+
+{promptLock}
+
+{envLock}
+
+Action: {action}
+
+--ar {aspectRatio}
+--style raw
+```
+
+The exact syntax must be platform-aware.
+
+## 15.3 Platforms
+
+The compiler should expose a provider/platform adapter model rather than hard-coding one syntax.
+
+---
+
+# 16. Shot Model
+
+Shots are the principal production unit.
+
+```ts
+type Shot = {
+  id: string
+  sceneId: string
+  frameId?: string
+  characterId?: string
+  environmentId?: string
+  depthCellId?: string
+  shotType: ShotType
+  lens: Lens
+  movement: CameraMovement
+  duration: number
+  action: string
+  dialogue?: string
+  notes?: string
+  compiledPrompt?: string
+}
+```
+
+A shot can therefore establish a complete relationship:
+
+```text
+SHOT
+ ├── Scene
+ ├── Character
+ ├── Environment
+ ├── Depth
+ ├── Camera
+ ├── Action
+ └── Prompt
+```
+
+---
+
+# 17. Inspector Panel
+
+Three required tabs:
+
+## 17.1 Frame
+
+- action;
+- dialogue/voice-over;
+- duration;
+- visual notes.
+
+## 17.2 Camera
+
+- shot type;
+- lens;
+- movement.
+
+## 17.3 Locks
+
+- Character ID;
+- Environment ID.
+
+All changes must update the canonical state immediately.
+
+---
+
+# 18. Timeline
+
+## 18.1 Timeline calculation
+
+Total duration:
+
+```text
+totalDuration = Σ frame.duration
+```
+
+Frame segment width is proportional to duration.
+
+## 18.2 Playhead
+
+Playhead position is derived from:
+
+```text
+progress = currentTime / totalDuration
+```
+
+## 18.3 Interaction
+
+Must support:
+
+- play;
+- pause;
+- stop;
+- seek;
+- click timeline;
+- frame selection.
+
+## 18.4 Playback
+
+Use `requestAnimationFrame` for smooth playback.
+
+Playback must not continuously create heavyweight React state updates if direct rendering can safely be used.
+
+---
+
+# 19. Animatic Modal
+
+The Animatic is derived from storyboard frames.
+
+## 19.1 Required features
+
+- fullscreen/modal presentation;
+- frame preview;
+- scene/frame label;
+- dialogue overlay;
+- subtitle overlay;
+- timing;
+- play/pause;
+- stop;
+- progress;
+- current-frame indicator.
+
+## 19.2 Synchronization
+
+Changing frame duration in Storyboard must automatically change:
+
+- timeline;
+- total duration;
+- animatic timing.
+
+---
+
+# 20. Visual Production Bible
+
+The Bible consolidates:
+
+- project metadata;
+- characters;
+- Character Prompt Locks;
+- environments;
+- Env Locks;
+- shot inventory;
+- visual/camera information;
+- selected references.
+
+It must act as a production reference document rather than a decorative report.
+
+## 20.1 Single-source rule
+
+Bible data is generated from project state.
+
+Users must not need to maintain a separate Bible database.
+
+---
+
+# 21. Source Ingestion
+
+## 21.1 Supported formats
+
+The supplied development extraction indicates support for:
+
+- TXT;
+- MD;
+- JSON;
+- CSV;
+- HTML;
+- Fountain;
+- Seedance project files.
+
+## 21.2 Ingestion pipeline
+
+```text
+File
+ ↓
+Read
+ ↓
+Normalize
+ ↓
+Preserve Source
+ ↓
+Classify Format
+ ↓
+Parse
+ ↓
+Extract Structured Data
+ ↓
+User Review
+ ↓
+Commit to Project State
+```
+
+## 21.3 Source preservation
+
+The original document must remain available inside the project as a source artifact.
+
+This enables:
+
+- traceability;
+- re-analysis;
+- auditing;
+- regeneration;
+- comparison.
+
+## 21.4 AI extraction
+
+AI extraction must explicitly distinguish:
+
+- source fact;
+- structured inference;
+- unresolved ambiguity.
+
+No fabricated detail should be silently promoted to canonical production data.
+
+---
+
+# 22. AI Architecture
+
+## 22.1 Provider abstraction
+
+```ts
+interface AIProvider {
+  id: string
+  name: string
+  isAvailable(): Promise<boolean>
+  chat(input: AIRequest): Promise<AIResponse>
+  generate(input: AIRequest): Promise<AIResponse>
+}
+```
+
+## 22.2 Providers
+
+### Ollama
+
+Local model provider.
+
+Capabilities:
+
+- model discovery;
+- chat;
+- generation;
+- local/offline operation.
+
+### Mock
+
+Deterministic development/test provider.
+
+Purpose:
+
+- UI development;
+- workflow testing;
+- offline demonstrations;
+- automated testing.
+
+## 22.3 AI operations
+
+Initial operations:
+
+- source analysis;
+- character Prompt Lock;
+- environment Env Lock;
+- shot prompt generation;
+- multi-shot prompt generation;
+- Visual Bible generation.
+
+---
+
+# 23. AI Safety and Continuity Rules
+
+Every AI operation must receive explicit context.
+
+AI must not infer continuity from isolated text when canonical entities already exist.
+
+Priority:
+
+```text
+Canonical Project State
+        >
+Approved Lock
+        >
+User-authored notes
+        >
+Parsed source
+        >
+AI inference
+```
+
+AI-generated content must be marked as generated until accepted.
+
+---
+
+# 24. State Management
+
+Zustand is the canonical client state manager.
+
+## 24.1 State domains
+
+```ts
+type ProjectState = {
+  project: Project
+  selection: SelectionState
+  viewport: ViewportState
+  boards: BoardWindowState[]
+  playback: PlaybackState
+  history: HistoryState
+  ui: UIState
+  ai: AIState
+}
+```
+
+## 24.2 Project
+
+```ts
+type Project = {
+  id: string
+  title: string
+  director?: string
+  aspectRatio: string
+  fps: number
+  briefing?: string
+  sourceDocuments: SourceDocument[]
+  characters: Character[]
+  environments: Environment[]
+  scenes: Scene[]
+  frames: Frame[]
+  shots: Shot[]
+  depthCells: DepthCell[]
+  aiTools: AITool[]
+  notes?: string
+}
+```
+
+---
+
+# 25. History / Undo / Redo
+
+Major mutations must be snapshot-aware.
+
+Supported:
+
+- Undo;
+- Redo;
+- mutation grouping where appropriate.
+
+Examples of undoable mutations:
+
+- add frame;
+- delete frame;
+- edit frame;
+- move frame;
+- edit character;
+- edit environment;
+- change camera;
+- change lock;
+- modify scene;
+- import/commit source analysis.
+
+Viewport movement should not pollute project history.
+
+---
+
+# 26. Persistence
+
+## 26.1 `.seedance`
+
+Preferred native project format.
+
+Contains:
+
+- metadata;
+- project state;
+- source documents;
+- UI board layout;
+- version information.
+
+## 26.2 JSON
+
+Human-readable interchange format.
+
+## 26.3 Versioning
+
+Every saved project must include a schema version.
+
+```ts
+{
+  schemaVersion: "3.1.0",
+  ...
+}
+```
+
+Future versions must provide migration functions.
+
+---
+
+# 27. Tauri / Rust Backend
+
+## 27.1 Required IPC commands
+
+At minimum:
+
+- `save_project_file`
+- `load_project_file`
+- `get_app_info`
+
+## 27.2 Responsibilities
+
+Rust handles native capabilities such as:
+
+- filesystem persistence;
+- native dialogs;
+- application metadata;
+- desktop integration.
+
+Business logic should remain in TypeScript unless native access is required.
+
+---
+
+# 28. Export System
+
+## 28.1 JSON
+
+Export complete project state.
+
+## 28.2 `.seedance`
+
+Export portable native project.
+
+## 28.3 CSV
+
+Shot-oriented export.
+
+Minimum columns:
+
+```text
+Shot ID
+Scene
+Shot Type
+Lens
+Movement
+Duration
+Character
+Environment
+Action
+Prompt
+```
+
+## 28.4 PDF
+
+Production/set-oriented print output.
+
+Must provide:
+
+- print layout;
+- scene grouping;
+- frame visual;
+- shot metadata;
+- action/dialogue;
+- camera data.
+
+The print layout must use dedicated print CSS.
+
+---
+
+# 29. Clipboard and Feedback
+
+## 29.1 Clipboard
+
+Prompt Studio must provide copy-to-clipboard.
+
+A fallback mechanism should exist when the preferred Clipboard API is unavailable.
+
+## 29.2 Toasts
+
+User feedback must be provided for:
+
+- copied prompt;
+- saved project;
+- loaded project;
+- export completed;
+- import completed;
+- AI completed;
+- AI failed;
+- invalid URL;
+- validation errors.
+
+---
+
+# 30. Keyboard Interaction
+
+At minimum:
+
+- `Esc` closes modal;
+- standard undo/redo shortcuts;
+- focus/navigation shortcuts where appropriate;
+- deletion of selected entities only when safe.
+
+Keyboard shortcuts must never conflict with text editing.
+
+---
+
+# 31. Responsive / Interaction Requirements
+
+The supplied implementation emphasizes:
+
+- pointer capture;
+- dynamic viewport scaling;
+- resize handling;
+- event delegation;
+- preserving input focus;
+- avoiding unintended canvas gestures.
+
+Rules:
+
+1. Canvas pan ignores interactive controls.
+2. Board drag must not initiate canvas pan.
+3. Input fields must stop propagation where necessary.
+4. Modal interactions must be isolated from the canvas.
+5. Resize must preserve world coordinates.
+6. Zoom must remain cursor-centered.
+
+---
+
+# 32. Visual Design System
+
+The current approved visual direction must be preserved.
+
+## 32.1 Style
+
+- dark cinematic workspace;
+- glass/translucent panels;
+- subtle glow for focus;
+- technical metadata;
+- restrained motion;
+- clear hierarchy;
+- production-tool aesthetic.
+
+## 32.2 Avoid
+
+- generic SaaS styling;
+- excessive rounded cards;
+- decorative gradients without semantic purpose;
+- excessive centered layouts;
+- visual noise;
+- replacing functional metadata with decorative UI.
+
+## 32.3 Typography
+
+Typography must prioritize:
+
+- compact metadata;
+- readable production text;
+- clear hierarchy;
+- screenplay readability.
+
+---
+
+# 33. Visual Frame Renderer
+
+The current prototype uses procedural SVG placeholders.
+
+This should remain supported as a lightweight fallback.
+
+## 33.1 Inputs
+
+- shot type;
+- aspect ratio;
+- palette;
+- horizon;
+- subject scale;
+- depth;
+- letterbox state.
+
+## 33.2 Renderer
+
+The SVG may include:
+
+- sky/radial gradient;
+- horizon;
+- sun/moon;
+- subject silhouette;
+- rule-of-thirds guides;
+- anamorphic bars.
+
+## 33.3 Purpose
+
+The renderer is a **production planning visualization**, not a final image generator.
+
+---
+
+# 34. Continuity Validation
+
+The system should detect:
+
+- shot without Character Lock where one is expected;
+- shot without Env Lock where one is expected;
+- inconsistent character references;
+- missing environment reference;
+- invalid depth assignment;
+- missing prompt fields;
+- contradictory camera metadata;
+- frames with invalid duration.
+
+Validation must be visible without preventing legitimate exploratory work.
+
+---
+
+# 35. Data Flow
+
+## 35.1 Editing flow
+
+```text
+User Action
+ ↓
+UI Event
+ ↓
+Zustand Action
+ ↓
+Domain Mutation
+ ↓
+History Snapshot
+ ↓
+Canonical State
+ ↓
+Subscribers
+ ↓
+Storyboard / Inspector / Timeline / Prompt / Bible
+```
+
+## 35.2 AI flow
+
+```text
+Project State
+ ↓
+Context Builder
+ ↓
+AI Provider
+ ↓
+Generated Result
+ ↓
+Validation
+ ↓
+User Review
+ ↓
+Commit
+ ↓
+History
+```
+
+## 35.3 Export flow
+
+```text
+Canonical Project
+ ↓
+Export Adapter
+ ↓
+Format Renderer
+ ↓
+File / Print
+```
+
+---
+
+# 36. Error Handling
+
+Errors must be classified as:
+
+- validation;
+- persistence;
+- parser;
+- AI provider;
+- export;
+- integration.
+
+User-facing errors must explain:
+
+1. what failed;
+2. whether project data was affected;
+3. what the user can do next.
+
+AI failures must never corrupt existing locks or canonical data.
+
+---
+
+# 37. Performance Requirements
+
+The application must remain responsive with:
+
+- dozens of boards;
+- hundreds of frames;
+- large script documents;
+- multiple characters;
+- multiple environments;
+- long timelines.
+
+Performance principles:
+
+- avoid full application rerenders for pointer movement;
+- use memoization/selectors;
+- isolate board state;
+- use requestAnimationFrame for playback;
+- debounce expensive parsing;
+- avoid persistence on every pointer move;
+- virtualize large lists where needed.
+
+---
+
+# 38. Testing Strategy
+
+## 38.1 Unit tests
+
+Test:
+
+- Fountain parser;
+- prompt compiler;
+- timeline calculation;
+- depth mapping;
+- state mutations;
+- migrations;
+- validation;
+- export serialization.
+
+## 38.2 Integration tests
+
+Test:
+
+- source import → extraction → project;
+- character lock → shot prompt;
+- environment lock → shot prompt;
+- storyboard → timeline;
+- storyboard → animatic;
+- project → Bible;
+- project → export.
+
+## 38.3 Interaction tests
+
+Test:
+
+- pan;
+- zoom;
+- board drag;
+- board focus;
+- minimize;
+- frame drag/drop;
+- timeline seek;
+- modal open/close;
+- keyboard behavior.
+
+---
+
+# 39. Acceptance Criteria
+
+The implementation is considered functionally complete when:
+
+### Canvas
+
+- [ ] pan works without accidental board movement;
+- [ ] zoom is cursor-centered;
+- [ ] board world positions remain stable.
+
+### Storyboard
+
+- [ ] scenes can contain multiple frames;
+- [ ] frames can be added/edited/deleted;
+- [ ] frames can be reordered;
+- [ ] frames can move between scenes.
+
+### Script
+
+- [ ] Fountain can be edited;
+- [ ] Fountain can be previewed;
+- [ ] scene headings and dialogue are parsed.
+
+### Character
+
+- [ ] character entities persist;
+- [ ] turnaround references persist;
+- [ ] Prompt Lock persists;
+- [ ] Prompt Lock can be generated through AI.
+
+### Environment
+
+- [ ] SOAC fields persist;
+- [ ] references persist;
+- [ ] Env Lock persists;
+- [ ] Env Lock can be generated through AI.
+
+### Camera
+
+- [ ] all nine shot types are available;
+- [ ] lens is editable;
+- [ ] movement is editable;
+- [ ] depth layers are editable.
+
+### Prompt Studio
+
+- [ ] selected shot is represented;
+- [ ] character/environment locks are included;
+- [ ] prompt compiles deterministically;
+- [ ] platform-specific output is supported;
+- [ ] clipboard works.
+
+### AI
+
+- [ ] Mock provider works offline;
+- [ ] Ollama can discover available models;
+- [ ] AI results require acceptance before canonical replacement.
+
+### Timeline
+
+- [ ] duration reflects frames;
+- [ ] seek works;
+- [ ] playback works;
+- [ ] active frame follows playhead.
+
+### Animatic
+
+- [ ] frame sequence plays;
+- [ ] timing matches storyboard;
+- [ ] overlays render.
+
+### Persistence
+
+- [ ] save works;
+- [ ] load works;
+- [ ] `.seedance` is portable;
+- [ ] schema version exists.
+
+### Export
+
+- [ ] JSON;
+- [ ] `.seedance`;
+- [ ] CSV;
+- [ ] PDF/print.
+
+### Bible
+
+- [ ] characters included;
+- [ ] environments included;
+- [ ] shot inventory included;
+- [ ] data derives from canonical state.
+
+---
+
+# 40. Implementation Phases
+
+## Phase 1 — Foundation
+
+- React/Tauri project;
+- Zustand store;
+- project schema;
+- persistence;
+- canvas;
+- BoardWindow;
+- TopBar;
+- Inspector;
+- Timeline.
+
+## Phase 2 — Production Boards
+
+- Storyboard;
+- Script;
+- Character;
+- Environment;
+- Tools;
+- Depth;
+- Prompt Studio.
+
+## Phase 3 — Continuity Engine
+
+- locks;
+- shot relationships;
+- prompt compiler;
+- validation;
+- Bible.
+
+## Phase 4 — AI
+
+- provider abstraction;
+- Mock provider;
+- Ollama;
+- source analysis;
+- lock generation;
+- prompt generation.
+
+## Phase 5 — Animatic & Export
+
+- animatic;
+- playback;
+- PDF;
+- CSV;
+- JSON;
+- `.seedance`.
+
+## Phase 6 — Hardening
+
+- undo/redo;
+- migrations;
+- performance;
+- interaction tests;
+- error handling;
+- packaging.
+
+---
+
+# 41. Open Decisions
+
+The following items require explicit product decisions before final implementation:
+
+1. Exact Fountain grammar coverage.
+2. Final AI provider API abstraction.
+3. Exact Ollama model configuration.
+4. Whether generated images are stored locally or referenced by URL.
+5. Maximum project size.
+6. Asset storage strategy inside `.seedance`.
+7. Final list of camera movement enums.
+8. Final platform-specific prompt adapters.
+9. PDF layout templates.
+10. Bible layout templates.
+11. Whether source documents are embedded or stored as sidecar files.
+12. Whether frame visual generation will remain SVG-only or support external image providers.
+13. Tauri native file dialog behavior.
+14. Auto-save policy.
+15. Project recovery/autosave format.
+
+---
+
+# 42. Architectural Invariants
+
+The following rules are mandatory and should be treated as non-negotiable implementation invariants.
+
+### INV-001 — Single Source of Truth
+
+All production views derive from canonical project state.
+
+### INV-002 — Character Continuity
+
+A Character Prompt Lock is the authoritative visual identity descriptor once approved.
+
+### INV-003 — Environment Continuity
+
+An Environment Env Lock is the authoritative environment descriptor once approved.
+
+### INV-004 — Shot Context
+
+A shot prompt must be capable of referencing character, environment and camera context.
+
+### INV-005 — Timeline Consistency
+
+Animatic timing must derive from frame durations.
+
+### INV-006 — Export Consistency
+
+Exports must derive from canonical project state.
+
+### INV-007 — Reversibility
+
+Destructive project mutations must be undoable.
+
+### INV-008 — Source Traceability
+
+Imported source material must remain traceable.
+
+### INV-009 — Local Operation
+
+Core project authoring must not depend on a remote AI service.
+
+### INV-010 — Visual Continuity
+
+UI evolution must preserve the approved Seedance Forge visual language.
+
+---
+
+# 43. Final Product Model
+
+The final Seedance Forge should be understood as:
+
+```text
+                    SOURCE MATERIAL
+                          │
+                          ▼
+                    INGESTION ENGINE
+                          │
+                          ▼
+                    PROJECT STATE
+                          │
+          ┌───────────────┼────────────────┐
+          ▼               ▼                ▼
+       NARRATIVE       IDENTITY         WORLD
+       SCRIPT          CHARACTERS       ENVIRONMENTS
+          │               │                │
+          └───────────────┼────────────────┘
+                          ▼
+                       SHOTS
+                          │
+             ┌────────────┼────────────┐
+             ▼            ▼            ▼
+           CAMERA       DEPTH        PROMPT
+             │            │            │
+             └────────────┼────────────┘
+                          ▼
+                  PRODUCTION OUTPUT
+                   │       │       │
+                   ▼       ▼       ▼
+                ANIMATIC  BIBLE   SET PDF
+```
+
+The fundamental architectural idea is therefore:
+
+> **Seedance Forge is a continuity engine for cinematic pre-production, with the canvas acting as the spatial workspace and the project state acting as the production source of truth.**
