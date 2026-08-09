@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+target
+*.seedance
+*.log
+.env
+.DS_Store
+coverage
+.turbo
+.vite

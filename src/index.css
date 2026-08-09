@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 99px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+body {
+  @apply bg-[#09090b] text-zinc-100 antialiased overflow-hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* glass */
+.glass {
+  background: rgba(20,20,22,0.92);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.glass-strong {
+  background: rgba(14,14,16,0.96);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+
+/* board shadow */
+.board-shadow {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.06) inset, 0 0 0 1px rgba(255,255,255,0.04);
+}
+.board-focus {
+  box-shadow: 0 20px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(245,158,11,0.35), 0 0 24px rgba(245,158,11,0.12);
+}
+
+/* print */
+@media print {
+  body { overflow: visible !important; background: white !important; color: black !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+}
+.print-only { display: none; }

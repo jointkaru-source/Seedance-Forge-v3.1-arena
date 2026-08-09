@@ -1,0 +1,19 @@
+[package]
+name = "seedance-forge"
+version = "3.1.0"
+edition = "2021"
+description = "Seedance Forge v3.1 - Cinematic pre-production OS"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["dialog-all","fs-all","path-all","window-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+dirs = "5.0"
+
+[features]
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
