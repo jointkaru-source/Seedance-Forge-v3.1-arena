@@ -108,6 +108,69 @@ export function CharBoard(){
             </div>
           </Field>
 
+          <Field label={`REFERENCES — ARRASTE IMAGENS AQUI (${char.references.length})`}>
+            <div
+              onDragOver={e=>{e.preventDefault(); (e.currentTarget as HTMLElement).style.borderColor='rgba(167,139,250,0.5)'}}
+              onDragLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.1)'}}
+              onDrop={async e=>{
+                e.preventDefault()
+                ;(e.currentTarget as HTMLElement).style.borderColor='rgba(255,255,255,0.1)'
+                const files = Array.from(e.dataTransfer.files).filter(f=> f.type.startsWith('image/'))
+                if(!files.length){ toast('Solte apenas imagens aqui','error'); return}
+                for(const f of files){
+                  const dataUrl = await new Promise<string>(res=>{
+                    const r=new FileReader(); r.onload=()=>res(r.result as string); r.readAsDataURL(f)
+                  })
+                  updateCharacter(char.id, { references: [...char.references, dataUrl] })
+                }
+                toast(`${files.length} imagem(ns) adicionada(s)`, 'success')
+              }}
+              className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3 min-h-[96px]"
+            >
+              {char.references.length===0 ? (
+                <div className="text-center py-4">
+                  <div className="text-xs text-zinc-400">Arraste imagens aqui ou solte no canvas</div>
+                  <div className="text-[11px] text-white/30 mt-1">Formatos: PNG, JPG, WEBP — também aceita drag-drop global</div>
+                  <label className="mt-3 inline-flex h-7 px-3 rounded-full bg-white/5 border border-white/10 text-xs cursor-pointer hover:bg-white/10">
+                    Escolher ficheiros
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={async e=>{
+                      const files = Array.from(e.target.files ?? [])
+                      if(!files.length) return
+                      const urls = await Promise.all(files.map(f=> new Promise<string>(res=>{ const r=new FileReader(); r.onload=()=>res(r.result as string); r.readAsDataURL(f)})))
+                      const cur = useStore.getState().project.characters.find(c=>c.id===char.id)!.references
+                      updateCharacter(char.id, { references: [...cur, ...urls] })
+                      toast(`${files.length} imagem(ns) adicionada(s)`, 'success')
+                      e.target.value=''
+                    }} />
+                  </label>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {char.references.map((ref,i)=>(
+                    <div key={i} className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/20">
+                      <img src={ref} alt={`ref ${i}`} className="w-full h-24 object-cover" />
+                      <button onClick={()=> updateCharacter(char.id, { references: char.references.filter((_,idx)=> idx!==i) })} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 border border-white/10 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center">×</button>
+                      <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] font-mono px-1.5 py-0.5 text-white/70 truncate">REF {i+1}</div>
+                    </div>
+                  ))}
+                  <label className="h-24 rounded-xl border border-dashed border-white/10 bg-white/5 hover:bg-white/10 flex flex-col items-center justify-center gap-1 cursor-pointer">
+                    <span className="text-lg leading-none">＋</span>
+                    <span className="text-[10px] font-mono">ADD</span>
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={async e=>{
+                      const files = Array.from(e.target.files ?? [])
+                      if(!files.length) return
+                      const urls = await Promise.all(files.map(f=> new Promise<string>(res=>{ const r=new FileReader(); r.onload=()=>res(r.result as string); r.readAsDataURL(f)})))
+                      const cur = useStore.getState().project.characters.find(c=>c.id===char.id)!.references
+                      updateCharacter(char.id, { references: [...cur, ...urls] })
+                      toast(`${files.length} imagem(ns) adicionada(s)`, 'success')
+                      e.target.value=''
+                    }} />
+                  </label>
+                </div>
+              )}
+            </div>
+          </Field>
+
           <div className="rounded-xl border p-3 space-y-2" style={{background: char.lockStatus==='locked'?'rgba(16,185,129,0.08)': char.lockStatus==='draft'?'rgba(245,158,11,0.08)':'rgba(255,255,255,0.03)', borderColor: char.lockStatus==='locked'?'rgba(16,185,129,0.25)': char.lockStatus==='draft'?'rgba(245,158,11,0.25)':'rgba(255,255,255,0.08)'}}>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono tracking-[0.16em] font-bold">PROMPT LOCK</span>

@@ -21,8 +21,7 @@ export function InfiniteCanvas(){
 
   const onPointerDown = (e: React.PointerEvent)=>{
     const target = e.target as HTMLElement
-    // don't pan if clicking board or controls
-    if (target.closest('[data-board]') || target.closest('button') || target.closest('input') || target.closest('textarea') || target.closest('select')) return
+    if (target.closest('[data-board]') || target.closest('button') || target.closest('input') || target.closest('textarea') || target.closest('select') || target.closest('[data-nopan]')) return
     setPanning({ sx:e.clientX, sy:e.clientY, vx:viewport.x, vy:viewport.y })
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
@@ -37,21 +36,38 @@ export function InfiniteCanvas(){
     ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
   }
   const onWheel = (e: React.WheelEvent)=>{
-    // cursor-centered zoom
-    e.preventDefault()
-    const delta = -e.deltaY * 0.0015
-    const newZoom = Math.min(2.5, Math.max(0.3, viewport.zoom * (1+delta)))
-    if (newZoom===viewport.zoom) return
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) { setViewport({zoom:newZoom}); return }
-    const cx = e.clientX - rect.left
-    const cy = e.clientY - rect.top
-    // world point under cursor before
-    const wx = (cx - viewport.x) / viewport.zoom
-    const wy = (cy - viewport.y) / viewport.zoom
-    const nx = cx - wx * newZoom
-    const ny = cy - wy * newZoom
-    setViewport({ zoom: newZoom, x: nx, y: ny })
+    const target = e.target as HTMLElement
+    const insideBoard = !!target.closest('[data-board]')
+    // if scrolling inside board content, let native scroll happen unless ctrl is pressed (zoom)
+    const isScrollableBoard = insideBoard && !(e.ctrlKey || e.metaKey)
+    if (isScrollableBoard) {
+      // check if board content actually scrollable — if it has overflow, don't pan canvas
+      // allow native scroll
+      return
+    }
+    // CTRL+SCROLL = zoom (cursor-centered), otherwise pan canvas
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = -e.deltaY * 0.0015
+      const newZoom = Math.min(2.5, Math.max(0.3, viewport.zoom * (1+delta)))
+      if (newZoom===viewport.zoom) return
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect) { setViewport({zoom:newZoom}); return }
+      const cx = e.clientX - rect.left
+      const cy = e.clientY - rect.top
+      const wx = (cx - viewport.x) / viewport.zoom
+      const wy = (cy - viewport.y) / viewport.zoom
+      const nx = cx - wx * newZoom
+      const ny = cy - wy * newZoom
+      setViewport({ zoom: newZoom, x: nx, y: ny })
+    } else {
+      // pan with wheel (including shift+wheel for horizontal)
+      // only pan if not inside scrollable board
+      if (insideBoard) return
+      e.preventDefault()
+      const factor = 1
+      setViewport({ x: viewport.x - e.deltaX * factor, y: viewport.y - e.deltaY * factor })
+    }
   }
 
   const zoomIn = ()=>{
@@ -64,7 +80,6 @@ export function InfiniteCanvas(){
   }
   const resetView = ()=> setViewport({ x:-80, y:-60, zoom:0.92 })
 
-  // grid pattern transform
   const gridSize = 28 * viewport.zoom
 
   return (
@@ -99,12 +114,10 @@ export function InfiniteCanvas(){
           transformOrigin:'0 0',
         }}
       >
-        {/* canvas border hint */}
         <div className="absolute inset-0 rounded-[24px] border border-white/[0.04] pointer-events-none" />
-        <div className="absolute -top-6 left-4 font-mono text-[10px] tracking-[0.2em] text-white/20">CANVAS 6000×5000 • SEEDANCE FORGE v3.1</div>
+        <div className="absolute -top-6 left-4 font-mono text-[10px] tracking-[0.2em] text-white/20">CANVAS 6000×5000 • SEEDANCE FORGE v3.1 — CTRL+SCROLL pra ZOOM • ARRASTE pra PAN</div>
       </div>
 
-      {/* boards layered above world transform? We position via viewport math inside BoardWindow */}
       {boards.map(b=>(
         <div key={b.id} data-board>
           <BoardWindow win={b} viewport={viewport}>
@@ -120,20 +133,24 @@ export function InfiniteCanvas(){
       ))}
 
       {/* floating controls */}
-      <div className="absolute bottom-6 left-6 flex items-center gap-2 no-print">
+      <div className="absolute bottom-6 left-6 flex items-center gap-2 no-print" data-nopan>
         <div className="glass rounded-full p-1 flex items-center gap-1 shadow-xl">
-          <button onClick={zoomOut} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white">−</button>
-          <div className="px-3 font-mono text-xs tracking-widest text-white/80">{Math.round(viewport.zoom*100)}%</div>
-          <button onClick={zoomIn} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white">+</button>
+          <button onClick={zoomOut} title="Zoom Out (Ctrl+Scroll)" className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white">−</button>
+          <div className="px-3 font-mono text-xs tracking-widest text-white/80 min-w-[54px] text-center">{Math.round(viewport.zoom*100)}%</div>
+          <button onClick={zoomIn} title="Zoom In (Ctrl+Scroll)" className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white">+</button>
         </div>
         <button onClick={resetView} className="glass rounded-full px-4 h-9 text-xs font-mono tracking-widest text-white/80 hover:text-white border border-white/10">RESET VIEW</button>
-        <div className="hidden md:flex items-center gap-2 ml-2 text-[10px] font-mono tracking-widest text-white/30">
-          <span>DRAG CANVAS • SCROLL ZOOM • CLICK BOARD TO FOCUS</span>
+        <div className="hidden lg:flex items-center gap-2 ml-2 text-[10px] font-mono tracking-widest text-white/30">
+          <span className="hidden xl:inline">CTRL+SCROLL ZOOM</span>
+          <span className="hidden xl:inline opacity-40">•</span>
+          <span>ARRASTE CANVAS</span>
+          <span className="opacity-40">•</span>
+          <span>DUplo-CLIQUE CARD P/ EXPANDIR</span>
         </div>
       </div>
 
-      {/* minimap */}
-      <div className="absolute top-4 right-[340px] hidden xl:block no-print">
+      {/* minimap - moved to avoid left dock */}
+      <div className="absolute top-4 right-[340px] hidden xl:block no-print" data-nopan>
         <div className="glass rounded-xl p-2 w-[160px]">
           <div className="text-[10px] font-mono tracking-widest text-white/40 mb-1.5">WORLD MAP</div>
           <div className="relative bg-black/40 rounded-lg overflow-hidden border border-white/10" style={{ height: 110 }}>
